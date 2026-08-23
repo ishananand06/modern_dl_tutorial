@@ -69,18 +69,9 @@ class CharLSTM(nn.Module):
         # W_x maps the input embedding to all four gate pre-activations at once
         # W_h maps the previous hidden state to all four gate pre-activations
         # b   is the shared bias for all four gates
-        # TODO: define self.W_x as nn.Linear(embed_dim,  4 * hidden_dim, bias=False)
-        #              self.W_h as nn.Linear(hidden_dim, 4 * hidden_dim, bias=False)
-        #              self.b   as nn.Parameter(torch.zeros(4 * hidden_dim))
-        # Initialise W_x and W_h with nn.init.xavier_uniform_.
-        # Initialise the forget-gate slice of b to 1.0:
-        #     self.b.data[hidden_dim : 2 * hidden_dim] = 1.0
-        # This biases f_t to start near σ(1)≈0.73 — the standard trick for
-        # initialising forget gates to preserve memory by default.
-        raise NotImplementedError
-
-        # Output projection
-        # TODO: define self.fc as nn.Linear(hidden_dim, vocab_size)
+        # TODO: define fused LSTM gate weights (W_x, W_h, b) and output
+        # projection fc. Use xavier init for weights. Initialise forget-gate
+        # bias to 1.0 (first hidden_dim entries of b).
         raise NotImplementedError
 
     def forward(
@@ -101,25 +92,13 @@ class CharLSTM(nn.Module):
             logits: float tensor of shape (batch, seq_len, vocab_size)
             (h, c): final hidden and cell states, shape (batch, hidden_dim) each
                     — detach both before the next chunk
-
-        Implementation notes:
-            1. Embed x → (batch, seq_len, embed_dim)
-            2. Initialise h, c to zeros if hc is None
-            3. Loop over t in range(seq_len):
-                   x_t  = embeds[:, t, :]
-                   z_t  = self.W_x(x_t) + self.W_h(h) + self.b
-                   f_pre, i_pre, g_pre, o_pre = z_t.chunk(4, dim=-1)
-                   f_t  = torch.sigmoid(f_pre)
-                   i_t  = torch.sigmoid(i_pre)
-                   g_t  = torch.tanh(g_pre)
-                   o_t  = torch.sigmoid(o_pre)
-                   c    = f_t * c + i_t * g_t
-                   h    = o_t * torch.tanh(c)
-                   collect h into a list
-            4. Stack → (batch, seq_len, hidden_dim) → apply fc → logits
         """
-        # TODO: implement the forward pass following the notes above.
-        # Do NOT use nn.LSTM. The loop in step 3 is mandatory.
+        # TODO: implement forward pass.
+        #   - Embed x → (batch, seq_len, embed_dim)
+        #   - Loop over t: compute fused gates, update c and h, collect h
+        #   - Apply fc to stacked hidden states → logits
+        # Do NOT use nn.LSTM. The time-step loop is mandatory.
+
         raise NotImplementedError
 
     def init_hidden(

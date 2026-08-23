@@ -26,19 +26,29 @@ RNNs solve this with a single idea: a hidden state $h_t \in \mathbb{R}^H$ that s
 
 ```mermaid
 graph LR
-    x1["x1"] --> R1["RNN Cell"]
-    h0["h0 = 0"] --> R1
-    R1 --> h1["h1"]
-    R1 --> y1["y1"]
-    x2["x2"] --> R2["RNN Cell"]
+    x1["x₁"] --> R1["RNN Cell"]
+    h0["h₀ = 0"] --> R1
+    R1 --> h1["h₁"]
+    R1 --> y1["y₁"]
+    x2["x₂"] --> R2["RNN Cell"]
     h1 --> R2
-    R2 --> h2["h2"]
-    R2 --> y2["y2"]
-    x3["x3"] --> R3["RNN Cell"]
+    R2 --> h2["h₂"]
+    R2 --> y2["y₂"]
+    x3["x₃"] --> R3["RNN Cell"]
     h2 --> R3
-    R3 --> h3["h3"]
-    R3 --> y3["y3"]
+    R3 --> h3["h₃"]
+    R3 --> y3["y₃"]
 
+    style x1 fill:#eef2f8,color:#1a1a2e,stroke:#8a9bb5
+    style x2 fill:#eef2f8,color:#1a1a2e,stroke:#8a9bb5
+    style x3 fill:#eef2f8,color:#1a1a2e,stroke:#8a9bb5
+    style h0 fill:#eef2f8,color:#1a1a2e,stroke:#8a9bb5
+    style h1 fill:#4A90D9,color:#fff,stroke:#2c6fad
+    style h2 fill:#4A90D9,color:#fff,stroke:#2c6fad
+    style h3 fill:#4A90D9,color:#fff,stroke:#2c6fad
+    style y1 fill:#27ae60,color:#fff,stroke:#1a7a42
+    style y2 fill:#27ae60,color:#fff,stroke:#1a7a42
+    style y3 fill:#27ae60,color:#fff,stroke:#1a7a42
     style R1 fill:#4A90D9,color:#fff,stroke:#2c6fad
     style R2 fill:#4A90D9,color:#fff,stroke:#2c6fad
     style R3 fill:#4A90D9,color:#fff,stroke:#2c6fad
@@ -58,16 +68,16 @@ where $x_t$ is the embedded character at step $t$, $h_{t-1}$ is the hidden state
 
 ```mermaid
 graph TD
-    xt["xt  (embed dim)"]
-    ht1["ht-1  (H)"]
+    xt["xₜ  (embed dim)"]
+    ht1["hₜ₋₁  (H)"]
     Wxh["Wxh  (H x embed dim)"]
     Whh["Whh  (H x H)"]
     bh["bh  (H)"]
-    at["at = Wxh * xt + Whh * ht-1 + bh"]
-    ht["ht = tanh(at)  (H)"]
+    at["aₜ = Wxh·xₜ + Whh·hₜ₋₁ + bh"]
+    ht["hₜ = tanh(aₜ)  (H)"]
     Why["Why  (V x H)"]
     by["by  (V)"]
-    zt["zt = Why * ht + by  (V)"]
+    zt["zₜ = Why·hₜ + by  (V)"]
 
     xt --> Wxh --> at
     ht1 --> Whh --> at
@@ -76,7 +86,14 @@ graph TD
     ht --> Why --> zt
     by --> zt
 
-    style at fill:#f0f4ff,stroke:#4A90D9
+    style xt fill:#eef2f8,color:#1a1a2e,stroke:#8a9bb5
+    style ht1 fill:#eef2f8,color:#1a1a2e,stroke:#8a9bb5
+    style Wxh fill:#f5f5f5,color:#1a1a2e,stroke:#999
+    style Whh fill:#f5f5f5,color:#1a1a2e,stroke:#999
+    style bh fill:#f5f5f5,color:#1a1a2e,stroke:#999
+    style Why fill:#f5f5f5,color:#1a1a2e,stroke:#999
+    style by fill:#f5f5f5,color:#1a1a2e,stroke:#999
+    style at fill:#dbe7ff,color:#1a1a2e,stroke:#4A90D9
     style ht fill:#4A90D9,color:#fff,stroke:#2c6fad
     style zt fill:#27ae60,color:#fff,stroke:#1a7a42
 ```
@@ -131,6 +148,8 @@ A perplexity of $V$ (vocabulary size, ~65) means the model is no better than ran
 
 ### Backpropagation Through Time (BPTT)
 
+**Intuition first.** Imagine unrolling the RNN into one long feedforward network — one "layer" per time step — where every layer happens to use the exact same weights $W_{xh}, W_{hh}, W_{hy}$. Training this is not fundamentally different from training any deep feedforward net: one forward pass, one backward pass, one weight update. The only twist is what happens to the shared weights. Because $W_{hh}$ is reused at every single layer of this unrolled net, its gradient isn't a single term — it's the sum of a separate contribution from every layer it touched. That's the entire idea behind BPTT: ordinary backpropagation on an unrolled computation graph, with the gradients for each shared weight added up across all the time steps that used it. The equations below just make this precise.
+
 Because all weights are shared across time steps, gradients accumulate from every position:
 
 $$\frac{\partial \mathcal{L}}{\partial \theta} = \sum_{t=1}^{T} \frac{\partial \mathcal{L}_t}{\partial \theta}$$
@@ -149,21 +168,24 @@ where $\tanh'(a_t) = 1 - \tanh^2(a_t)$ applied element-wise, and $\delta^a_{T+1}
 
 ```mermaid
 graph RL
-    y3["y3hat  ->  dy3"] -->|"WhyT"| h3["dh3"]
-    y2["y2hat  ->  dy2"] -->|"WhyT"| h2["dh2"]
-    y1["y1hat  ->  dy1"] -->|"WhyT"| h1["dh1"]
-    h3 -->|"times tanhgrad"| a3["da3"]
-    h2 -->|"times tanhgrad"| a2["da2"]
-    h1 -->|"times tanhgrad"| a1["da1"]
-    a3 -->|"WhhT"| h2
-    a2 -->|"WhhT"| h1
+    y3["ŷ₃ → δy₃"] -->|"Whyᵀ"| h3["δh₃"]
+    y2["ŷ₂ → δy₂"] -->|"Whyᵀ"| h2["δh₂"]
+    y1["ŷ₁ → δy₁"] -->|"Whyᵀ"| h1["δh₁"]
+    h3 -->|"× tanh′"| a3["δa₃"]
+    h2 -->|"× tanh′"| a2["δa₂"]
+    h1 -->|"× tanh′"| a1["δa₁"]
+    a3 -->|"Whhᵀ"| h2
+    a2 -->|"Whhᵀ"| h1
 
-    style h1 fill:#e74c3c,color:#fff
-    style h2 fill:#e74c3c,color:#fff
-    style h3 fill:#e74c3c,color:#fff
-    style a1 fill:#c0392b,color:#fff
-    style a2 fill:#c0392b,color:#fff
-    style a3 fill:#c0392b,color:#fff
+    style y1 fill:#e8f8ee,color:#1a1a2e,stroke:#27ae60
+    style y2 fill:#e8f8ee,color:#1a1a2e,stroke:#27ae60
+    style y3 fill:#e8f8ee,color:#1a1a2e,stroke:#27ae60
+    style h1 fill:#e74c3c,color:#fff,stroke:#a83226
+    style h2 fill:#e74c3c,color:#fff,stroke:#a83226
+    style h3 fill:#e74c3c,color:#fff,stroke:#a83226
+    style a1 fill:#c0392b,color:#fff,stroke:#8e2a20
+    style a2 fill:#c0392b,color:#fff,stroke:#8e2a20
+    style a3 fill:#c0392b,color:#fff,stroke:#8e2a20
 ```
 
 Each red node receives gradient from two sources: its own output (via $W_{hy}^\top$) and the next step's pre-activation error (via $W_{hh}^\top$). PyTorch autograd computes this automatically — but you must write the correct forward pass so that the computation graph is correct.
@@ -172,23 +194,23 @@ Each red node receives gradient from two sources: its own output (via $W_{hy}^\t
 
 ### Vanishing and exploding gradients
 
-Consider the gradient signal flowing back from step $T$ to step $t$. Ignoring the output contribution at each step, the dominant term is:
+Consider the gradient signal flowing back from step $T$ to step $t$. As an *informal, illustrative* approximation — not a literal closed form, since it ignores the output-error contribution $W_{hy}^\top \delta^y_\tau$ that is actually injected at every intermediate step, not just at $T$ — the dominant term behaves like:
 
 $$\delta^a_t \;\propto\; \left(W_{hh}^\top\right)^{T-t} \delta^a_T \;\cdot\; \prod_{\tau=t}^{T} \tanh'(a_\tau)$$
 
-Two compounding factors determine whether this survives:
+This is useful for building intuition about *why* long sequences are hard, but the real gradient at any given step is a sum over contributions from every later time step, each injected through its own output error. Two compounding factors determine whether the signal survives across many steps:
 
 1. **Repeated multiplication by $W_{hh}^\top$:** if the largest eigenvalue of $W_{hh}$ is $> 1$, the gradient norm grows exponentially → **exploding gradients**, training diverges. If $< 1$, it shrinks exponentially → **vanishing gradients**, early time steps receive no learning signal.
 
-2. **Repeated multiplication by $\tanh'(a)$:** the tanh derivative lies in $(0, 1)$ — always less than 1. Over hundreds of steps, this alone can reduce the gradient to numerical zero.
+2. **Repeated multiplication by $\tanh'(a)$:** the tanh derivative $\tanh'(a) = 1 - \tanh^2(a)$ lies in $(0, 1]$, reaching its maximum of exactly 1 only at $a = 0$ and shrinking toward 0 as $|a|$ grows. It is not a strict upper bound below 1 — but across hundreds of time steps it is vanishingly rare for every pre-activation to sit exactly at 0, so the repeated product still reliably erodes the gradient toward numerical zero in practice.
 
 ```mermaid
 graph LR
     subgraph "Gradient magnitude decays backward through time"
-        T["t=T  1.00"] -->|"x0.85"| T1["t=T-10  0.20"]
-        T1 -->|"x0.85"| T2["t=T-30  0.008"]
-        T2 -->|"x0.85"| T3["t=T-60  ~1e-5"]
-        T3 -->|"x0.85"| T4["t=1  ~0"]
+        T["t=T  1.00"] -->|"×0.85"| T1["t=T-10  0.20"]
+        T1 -->|"×0.85"| T2["t=T-30  0.008"]
+        T2 -->|"×0.85"| T3["t=T-60  ~1e-5"]
+        T3 -->|"×0.85"| T4["t=1  ~0"]
     end
 
     style T fill:#27ae60,color:#fff
@@ -224,35 +246,11 @@ $$c_t = f_t \odot c_{t-1} + i_t \odot \tilde{c}_t$$
 
 The gradient of $c_t$ with respect to $c_{t-1}$ is simply $f_t$ — a learned element-wise scalar, not a full matrix multiply through a saturating nonlinearity. When $f_t \approx 1$, the gradient passes through nearly unchanged, enabling the network to learn dependencies across hundreds of steps.
 
-Three gates regulate information flow:
+**Intuition first.** Picture the cell state as a conveyor belt running along the top of the diagram below, carrying information forward through time largely untouched. At every step, the network is allowed to do exactly three things to that belt: erase some of what's already on it (forget gate), place new material onto it (input gate), and read some of it off to decide what to output right now (output gate). Because the belt is updated by addition — $c_t = f_t \odot c_{t-1} + i_t \odot \tilde{c}_t$ — rather than by repeated matrix multiplication and squashing through $\tanh$, whatever is placed on it survives dozens or hundreds of steps unless a gate actively decides to remove it. That's the whole idea. The equations that follow are just the precise, learnable version of "erase, write, read."
 
-```mermaid
-graph TD
-    xt["xt"]
-    ht1["ht-1"]
+![LSTM cell diagram](lstm_cell_diagram.svg)
 
-    xt --> fg["Forget gate: ft = sigmoid(Wf*xt + Uf*ht-1 + bf)"]
-    ht1 --> fg
-    xt --> ig["Input gate: it = sigmoid(Wi*xt + Ui*ht-1 + bi)"]
-    ht1 --> ig
-    xt --> cm["Candidate: ctilde = tanh(Wc*xt + Uc*ht-1 + bc)"]
-    ht1 --> cm
-    xt --> og["Output gate: ot = sigmoid(Wo*xt + Uo*ht-1 + bo)"]
-    ht1 --> og
-
-    fg -->|"ft * ct-1"| cs["Cell state: ct = ft*ct-1 + it*ctilde"]
-    ig --> cs
-    cm --> cs
-    cs --> hs["Hidden state: ht = ot * tanh(ct)"]
-    og --> hs
-
-    style fg fill:#9b59b6,color:#fff
-    style ig fill:#3498db,color:#fff
-    style cm fill:#1abc9c,color:#fff
-    style og fill:#e67e22,color:#fff
-    style cs fill:#e74c3c,color:#fff
-    style hs fill:#2c3e50,color:#fff
-```
+The cell-state line runs straight across the top: $C_{t-1}$ enters, gets scaled by the forget gate ($\times$), has new candidate content added in ($+$), and exits as $C_t$ — a nearly untouched path for gradients to flow through. Below it, $h_{t-1}$ and $x_t$ feed all four gates, and the output path branches off the cell state (through a $\tanh$ and a final gate) to produce $h_t$.
 
 **Forget gate** $f_t$: what fraction of the cell state to retain. Near 1 → keep everything; near 0 → erase.
 
@@ -285,14 +283,21 @@ where $W_x \in \mathbb{R}^{4H \times E}$ and $W_h \in \mathbb{R}^{4H \times H}$ 
 | Gradient path | $(W_{hh}^\top)^{T-t} \cdot \tanh'$ at every step | $f_{t+1}$ (learned scalar) at every step |
 | Exploding gradients | Common — needs clipping | Rare — gating suppresses extremes |
 | Vanishing gradients | Severe beyond ~20 steps | Controlled — forget gate near 1 |
-| Parameters | $\sim 3HV + H^2$ | $\sim 4H(\text{embed} + H)$ (4× more) |
+| Parameters (excl. output projection) | $\sim HE + H^2$ | $\sim 4H(E + H)$ (4× more) |
+| Parameters (incl. output projection $VH$) | $\sim HE + H^2 + VH$ | $\sim 4H(E + H) + VH$ |
 | Coherent text at 100+ chars | Rarely | Consistently |
 
-The LSTM costs 4× the parameters. For tasks requiring the network to remember something from many characters ago — matching brackets, sustaining a speaker's voice, maintaining metre — that cost is justified.
+With $E \approx V$ (embed_dim 64 vs. vocab_size ~65 for tinyshakespeare), the RNN's total parameter count is roughly $2HV + H^2$. The LSTM's recurrent core alone costs 4× the RNN's recurrent core; both models pay the same $VH$ cost for the shared output projection layer.
+
+The LSTM costs 4× the parameters in its recurrent core. For tasks requiring the network to remember something from many characters ago — matching brackets, sustaining a speaker's voice, maintaining metre — that cost is justified.
 
 ### Text generation
 
-After training, you generate text by feeding the model one character at a time and sampling from its predicted distribution. The **temperature** parameter $T$ controls sharpness:
+After training, you generate text by feeding the model one character at a time and sampling from its predicted distribution.
+
+**Intuition first.** At every step the model doesn't output one character — it outputs a full probability distribution over all ~65 characters (some softmax over the logits $z$). Greedily taking the single highest-probability character every time produces safe, repetitive text (the model falls into loops like "the the the the"). Sampling from the raw distribution instead introduces variety, but the raw distribution often has a long tail of low-probability, low-quality options that occasionally get picked and derail the sample. **Temperature** is a single knob that reshapes that distribution before you sample from it, without changing which character is most likely — only how much the less-likely options get to compete.
+
+Concretely: dividing every logit by $T$ before the softmax stretches the gaps between logits when $T < 1$ (so the top character dominates even more) and compresses them when $T > 1$ (so the distribution flattens toward uniform, and rare characters get a real shot). For example, if three characters have logits $[2.0, 1.0, 0.5]$, at $T=0.5$ the softmax probabilities become roughly $[0.87, 0.12, 0.01]$ — heavily concentrated on the top choice — while at $T=1.5$ they spread out to roughly $[0.51, 0.28, 0.21]$ — the second and third choices become genuinely competitive. Same model, same logits, different sampling behavior.
 
 $$p_i = \frac{e^{z_i / T}}{\sum_j e^{z_j / T}}$$
 
@@ -307,21 +312,24 @@ Try temperatures 0.5, 0.8, and 1.2 and compare the output. This is one of the an
 ## Reading Material
 
 **Primary — read before starting**
+
 - Karpathy, "The Unreasonable Effectiveness of Recurrent Neural Networks" (2015): http://karpathy.github.io/2015/05/21/rnn-effectiveness/
-- Stanford CS-230 RNN Cheatsheet: https://stanford.edu/~shervine/teaching/cs-230/cheatsheet-recurrent-neural-networks/
+- Olah, "Understanding LSTM Networks" (2015) — the canonical visual walkthrough of the gates; the diagram in the LSTM section of this doc follows the same convention: https://colah.github.io/posts/2015-08-Understanding-LSTMs/
+
+**Dive deeper — Dive into Deep Learning (D2L)**
+
+- "Recurrent Neural Networks" — the concepts (hidden state, unrolling, why feedforward/CNNs fail on sequences): https://d2l.ai/chapter_recurrent-neural-networks/rnn.html
+- "Recurrent Neural Network Implementation from Scratch" — walks through building a similar kind of char-level RNN this assignment asks for: https://d2l.ai/chapter_recurrent-neural-networks/rnn-scratch.html
+- "Backpropagation Through Time" — a second, more formal pass at the BPTT derivation in this doc, useful if the gradient equations above don't click on the first read: https://d2l.ai/chapter_recurrent-neural-networks/bptt.html
 
 **Videos — watch in this order**
 
 1. StatQuest: "RNNs Clearly Explained": https://www.youtube.com/watch?v=AsNTP8Kwu80
 2. StatQuest: "LSTM Clearly Explained": https://www.youtube.com/watch?v=YCzL96nL7j0
 
-**Application paper**
-
-- Wang, "Music Composition with RNN" (CS229, 2016): https://cs229.stanford.edu/proj2016/report/Wang-MusicCompositionWithRNN-report.pdf
-
 **Original paper**
 
-- Hochreiter & Schmidhuber, "Long Short-Term Memory" (1997): https://www.bioinf.jku.at/publications/older/2604.pdf
+- Hochreiter & Schmidhuber, "Long Short-Term Memory," *Neural Computation* 9(8):1735–1780, 1997. PDF: [https://deeplearning.cs.cmu.edu/S23/document/readings/LSTM.pdf](https://deeplearning.cs.cmu.edu/S23/document/readings/LSTM.pdf) 
 
 ---
 
@@ -369,7 +377,7 @@ A05/
 ├── data.py            ← provided; download, vocab, DataLoaders
 ├── rnn.py             ← implement CharRNN cell (TODOs)
 ├── lstm.py            ← implement CharLSTM cell (TODOs)
-├── train.py           ← implement training step (TODOs)
+├── train.py            ← implement training step (TODOs)
 ├── evaluate.py        ← provided; compute test perplexity
 ├── generate.py        ← provided; sample text at multiple temperatures
 ├── utils.py           ← provided; seed, device, checkpointing, plots
@@ -392,17 +400,6 @@ A05/
 - [ ] `outputs/samples/lstm_T0.80.txt` — LSTM samples at temperature 0.8
 - [ ] `outputs/samples/lstm_T1.20.txt` — LSTM samples at temperature 1.2
 - [ ] `notes.md` — answers to the three analysis questions below
-
-**Target metrics** (after 10 epochs, hidden\_dim=256, embed\_dim=64, seq\_len=100)
-
-| Model | Val Perplexity | Notes |
-|---|---|---|
-| Vanilla RNN | < 8.0 | With gradient clipping (max\_norm=5) |
-| LSTM | < 5.0 | Noticeably more coherent generated text |
-
-If your RNN val perplexity is above 15 after 5 epochs, check: (1) hidden state is being detached between chunks, (2) gradient clipping is applied, (3) `W_hh` is being used in the recurrence (easy to forget).
-
-If your LSTM val perplexity is not meaningfully better than the RNN, check: (1) forget gate bias is initialised to 1.0 not 0.0, (2) you are updating `c` and `h` correctly at each step, (3) both `h` and `c` are being detached between chunks.
 
 **Analysis questions for `notes.md`**
 

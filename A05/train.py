@@ -97,39 +97,12 @@ def train_epoch(
         y_batch = y_batch.to(device)   # (batch, seq_len)
 
         # TODO: implement the training step
-        #
-        # Step 1 — zero gradients
-        #     optimizer.zero_grad()
-        #
-        # Step 2 — forward pass
-        #     if is_lstm:
-        #         logits, hidden = model(x_batch, hidden)
-        #     else:
-        #         logits, hidden = model(x_batch, hidden)
-        #     logits shape: (batch, seq_len, vocab_size)
-        #
-        # Step 3 — compute loss
-        #     CrossEntropyLoss expects:
-        #         input:  (N, V)  where N = batch * seq_len
-        #         target: (N,)
-        #     Reshape: logits.view(-1, logits.size(-1)), y_batch.view(-1)
-        #
-        # Step 4 — backward pass
-        #     loss.backward()
-        #
-        # Step 5 — gradient clipping
-        #     torch.nn.utils.clip_grad_norm_(model.parameters(), clip_norm)
-        #
-        # Step 6 — parameter update
-        #     optimizer.step()
-        #
-        # Step 7 — detach hidden state to cut the gradient graph
-        #     For RNN:  hidden = hidden.detach()
-        #     For LSTM: hidden = (hidden[0].detach(), hidden[1].detach())
-        #
-        # Step 8 — accumulate loss and character count for reporting
-        #     total_loss  += loss.item() * y_batch.numel()
-        #     total_chars += y_batch.numel()
+        #   - Zero gradients, forward pass, compute cross-entropy loss,
+        #     backward, clip gradients, step optimizer.
+        #   - Detach hidden state before the next batch (truncated BPTT).
+        #   - Accumulate loss for epoch-level reporting.
+        #   CrossEntropyLoss expects logits (N, V) and targets (N,)
+        #   where N = batch_size * seq_len.
 
         raise NotImplementedError
 

@@ -51,21 +51,8 @@ class CharRNN(nn.Module):
         # Input embedding: integer index → dense vector
         self.embedding = nn.Embedding(vocab_size, embed_dim)
 
-        # RNN cell weights — do NOT use nn.RNN
-        # W_xh: maps input embedding to hidden pre-activation
-        # W_hh: maps previous hidden state to hidden pre-activation
-        # b_h:  hidden bias
-        # TODO: define self.W_xh, self.W_hh, self.b_h as nn.Parameter
-        # Shapes:
-        #   W_xh: (hidden_dim, embed_dim)
-        #   W_hh: (hidden_dim, hidden_dim)
-        #   b_h:  (hidden_dim,)
-        # Initialise with nn.init.xavier_uniform_ for weight matrices,
-        # nn.init.zeros_ for biases.
-        raise NotImplementedError
-
-        # Output projection: hidden state → vocabulary logits
-        # TODO: define self.fc as nn.Linear(hidden_dim, vocab_size)
+        # TODO: define W_xh, W_hh, b_h as nn.Parameter
+        # and fc as nn.Linear (hidden → vocab). Use xavier init for weights.
         raise NotImplementedError
 
     def forward(
@@ -83,23 +70,15 @@ class CharRNN(nn.Module):
 
         Returns:
             logits: float tensor of shape (batch, seq_len, vocab_size)
-                    — unnormalised scores over vocabulary at each time step
             h:      final hidden state, shape (batch, hidden_dim)
                     — detach before passing to the next chunk (truncated BPTT)
-
-        Implementation notes:
-            1. Embed x → (batch, seq_len, embed_dim)
-            2. Initialise h to zeros if None
-            3. Loop over t in range(seq_len):
-                   x_t = embeds[:, t, :]                 shape (batch, embed_dim)
-                   a_t = x_t @ W_xh.T + h @ W_hh.T + b_h  shape (batch, hidden_dim)
-                   h   = torch.tanh(a_t)                  shape (batch, hidden_dim)
-                   collect h into a list
-            4. Stack hidden states → (batch, seq_len, hidden_dim)
-            5. Apply self.fc → logits (batch, seq_len, vocab_size)
         """
-        # TODO: implement the forward pass following the notes above.
-        # Do NOT use nn.RNN. The loop in step 3 is mandatory.
+        # TODO: implement forward pass.
+        #   - Embed x → (batch, seq_len, embed_dim)
+        #   - Loop over t: compute a_t, h_t = tanh(a_t), collect h
+        #   - Apply fc to stacked hidden states → logits
+        # Do NOT use nn.RNN. The time-step loop is mandatory.
+
         raise NotImplementedError
 
     def init_hidden(self, batch_size: int, device: torch.device) -> torch.Tensor:
